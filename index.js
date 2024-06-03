@@ -1,5 +1,5 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const cors = require('cors');
 require("dotenv").config();
@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
 
 
 
@@ -38,20 +39,27 @@ async function run() {
             const result = await eventsCollection.find({}).toArray();
             res.send(result)
         })
-
-        app.patch('/event/:id', async (req, res) => {
-            const {id} = req.params;
-            const body = req.body;
-            const options = { upsert: true };
-            const updateDoc = {
-                $set: {
-                    body
-                },
-            };
-            const result = await eventsCollection.updateOne({ _id: id }, updateDoc, options);
-            res.send(result);
+        app.get('/event/:id', async (req, res) => {
+            const { id } = req.params;
+            const result = await eventsCollection.findOne({ _id: new ObjectId(id) });
+            res.send(result)
         })
 
+        app.patch('/event/:id', async (req, res) => {
+            const { id } = req.params;
+            const body = req.body;
+            const updateDoc = {
+                $set: body
+            };
+            const result = await eventsCollection.updateOne({ _id: new ObjectId(id) }, updateDoc);
+            
+            res.send(result);
+        })
+        app.delete('/event/:id', async (req, res) => {
+            const { id } = req.params;
+            const result = await eventsCollection.deleteOne({ _id: new ObjectId(id) });
+            res.send(result)
+        })
 
         // Connect the client to the server	(optional starting in v4.7)
         // await client.connect();
