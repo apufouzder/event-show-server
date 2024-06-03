@@ -27,7 +27,46 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         const eventsCollection = await client.db('testdb').collection('events');
+        const usersCollection = await client.db('testdb').collection('users');
 
+        // User routes
+        app.post('/user', async (req, res) => {
+            const user = req.body;
+            const isUserExist = await usersCollection.findOne({ email: user?.email });
+            if (isUserExist?._id) {
+                return res.send({
+                    status: "success",
+                    message: "Login success",
+                });
+            }
+            const result = await usersCollection.insertOne(user);
+            res.send({ success: true, data: result });
+        })
+
+        app.get('/user', async (req, res) => {
+            const result = await usersCollection.find({}).toArray();
+            res.send(result);
+        })
+
+        app.get('/user/:email', async (req, res) => {
+            const email = req.params.email;
+            const result = await usersCollection.findOne({ email: email });
+            res.send(result);
+        })
+
+        app.patch('/user/:id', async (req, res) => {
+            const { id } = req.params;
+            const body = req.body;
+            const updateDoc = {
+                $set: body
+            };
+            const result = await usersCollection.updateOne({ _id: new ObjectId(id) }, updateDoc);
+
+            res.send(result);
+        })
+
+
+        // Events routes
         app.post('/event', async (req, res) => {
             const data = req.body;
             const result = await eventsCollection.insertOne(data);
@@ -52,7 +91,7 @@ async function run() {
                 $set: body
             };
             const result = await eventsCollection.updateOne({ _id: new ObjectId(id) }, updateDoc);
-            
+
             res.send(result);
         })
         app.delete('/event/:id', async (req, res) => {
