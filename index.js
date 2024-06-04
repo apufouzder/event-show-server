@@ -75,9 +75,24 @@ async function run() {
 
         app.get('/event', async (req, res) => {
             // const query = req.query;
-            const result = await eventsCollection.find({}).toArray();
+            // const result = await eventsCollection.find({}).toArray();
+            // res.send(result)
+            const { search } = req.query;
+            let query = {};
+            if (search) {
+                query = {
+                    $or: [
+                        { name: { $regex: search, $options: 'i' } },
+                        { location: { $regex: search, $options: 'i' } },
+                        { date: { $regex: search, $options: 'i' } },
+                        { speaker: { $regex: search, $options: 'i' } },
+                    ]
+                };
+            }
+            const result = await eventsCollection.find(query).toArray();
             res.send(result)
         })
+        
         app.get('/event/:id', async (req, res) => {
             const { id } = req.params;
             const result = await eventsCollection.findOne({ _id: new ObjectId(id) });
