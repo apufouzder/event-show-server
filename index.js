@@ -4,14 +4,32 @@ const app = express();
 const cors = require('cors');
 require("dotenv").config();
 const PORT = process.env.PORT || 5000;
+const jwt = require('jsonwebtoken');
 
 
 app.use(cors());
 app.use(express.json());
 
 
+function createToken(user) {
+    const token = jwt.sign(
+        { email: user.email },
+        'secret',
+        { expiresIn: '7d' }
+    );
+    return token;
+}
 
+function verifyToken(req, res, next) {
+    const token = req.headers.authorization.split(" ")[1];
+    const verify = jwt.verify(token, "secret");
+    if (!verify?.email) {
+        return res.send("You are not authorized");
+    }
+    req.user = verify.email;
 
+    next();
+}
 
 const uri = `mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PASS}@cluster0.ls5ir.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -32,15 +50,18 @@ async function run() {
         // User routes
         app.post('/user', async (req, res) => {
             const user = req.body;
+            const token = createToken(user);
+
             const isUserExist = await usersCollection.findOne({ email: user?.email });
             if (isUserExist?._id) {
                 return res.send({
                     status: "success",
                     message: "Login success",
+                    token,
                 });
             }
             const result = await usersCollection.insertOne(user);
-            res.send({ success: true, data: result });
+            res.send({ success: true, data: result, token });
         })
 
         app.get('/user', async (req, res) => {
@@ -54,7 +75,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/user/:id', async (req, res) => {
+        app.patch('/user/:id', verifyToken, async (req, res) => {
             const { id } = req.params;
             const body = req.body;
             const updateDoc = {
@@ -67,7 +88,7 @@ async function run() {
 
 
         // Events routes
-        app.post('/event', async (req, res) => {
+        app.post('/event', verifyToken, async (req, res) => {
             const data = req.body;
             const result = await eventsCollection.insertOne(data);
             res.send({ success: true, data: result });
@@ -92,14 +113,14 @@ async function run() {
             const result = await eventsCollection.find(query).toArray();
             res.send(result)
         })
-        
+
         app.get('/event/:id', async (req, res) => {
             const { id } = req.params;
             const result = await eventsCollection.findOne({ _id: new ObjectId(id) });
             res.send(result)
         })
 
-        app.patch('/event/:id', async (req, res) => {
+        app.patch('/event/:id', verifyToken, async (req, res) => {
             const { id } = req.params;
             const body = req.body;
             const updateDoc = {
@@ -109,7 +130,7 @@ async function run() {
 
             res.send(result);
         })
-        app.delete('/event/:id', async (req, res) => {
+        app.delete('/event/:id', verifyToken, async (req, res) => {
             const { id } = req.params;
             const result = await eventsCollection.deleteOne({ _id: new ObjectId(id) });
             res.send(result)
